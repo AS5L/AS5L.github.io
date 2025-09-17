@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极验验证码</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+        }
+        
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: "Roboto", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background-color: var(--md-sys-color-surface, #fefefe);
+            color: var(--md-sys-color-on-surface, #1d1b20);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background-color: var(--md-sys-color-surface-container, #fff);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            margin: 0 0 24px 0;
+            font-size: 22px;
+            font-weight: 500;
+            color: var(--md-sys-color-primary, #6750a4);
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: var(--md-sys-color-on-surface-variant, #49454f);
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--md-sys-color-outline, #79747e);
+            border-radius: 4px;
+            font-size: 16px;
+            background-color: transparent;
+            color: var(--md-sys-color-on-surface, #1d1b20);
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: var(--md-sys-color-primary, #6750a4);
+        }
+        
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 24px;
+            height: 40px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.1px;
+            cursor: pointer;
+            border: none;
+            background-color: var(--md-sys-color-primary, #6750a4);
+            color: var(--md-sys-color-on-primary, #ffffff);
+            text-transform: uppercase;
+            transition: background-color 0.2s, box-shadow 0.2s;
+        }
+        
+        .button:hover {
+            background-color: var(--md-sys-color-primary-hover, #7c6aaf);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .button:active {
+            background-color: var(--md-sys-color-primary-pressed, #5a4799);
+        }
+        
+        .button.secondary {
+            background-color: transparent;
+            color: var(--md-sys-color-primary, #6750a4);
+            border: 1px solid var(--md-sys-color-outline, #79747e);
+        }
+        
+        .button.secondary:hover {
+            background-color: var(--md-sys-color-surface-container-highest, #f3f0f9);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin: 24px 0;
+        }
+        
+        #captcha {
+            margin: 24px 0;
+            min-height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--md-sys-color-surface-container-high, #f3f0f9);
+            border-radius: 8px;
+        }
+        
+        #text {
+            color: var(--md-sys-color-on-surface-variant, #49454f);
+            font-size: 14px;
+        }
+        
+        #wait {
+            display: none;
+        }
+        
+        .loading {
+            margin: auto;
+            width: 70px;
+            height: 20px;
+        }
+        
+        .loading-dot {
+            float: left;
+            width: 8px;
+            height: 8px;
+            margin: 18px 4px;
+            background: var(--md-sys-color-primary, #6750a4);
+            border-radius: 50%;
+            opacity: 0;
+            animation: loadingFade 1s infinite;
+        }
+        
+        .loading-dot:nth-child(1) {
+            animation-delay: 0s;
+        }
+        
+        .loading-dot:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+        
+        .loading-dot:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+        
+        .loading-dot:nth-child(4) {
+            animation-delay: 0.3s;
+        }
+        
+        @keyframes loadingFade {
+            0% { opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0; }
+        }
+        
+        .result-container {
+            margin-top: 16px;
+            width: 100%;
+        }
+        
+        .result-label {
+            font-size: 14px;
+            color: var(--md-sys-color-on-surface-variant, #49454f);
+            margin-bottom: 8px;
+        }
+        
+        .result-value {
+            width: 100%;
+            padding: 12px 16px;
+            background-color: var(--md-sys-color-surface-container-high, #f3f0f9);
+            border-radius: 4px;
+            font-size: 14px;
+            word-break: break-all;
+            user-select: all;
+        }
+        
+        .snackbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--md-sys-color-inverse-surface, #313033);
+            color: var(--md-sys-color-inverse-on-surface, #f4eff4);
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+        
+        .snackbar.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="button-group">
+            <button id="btn-gen" class="button">生成验证码</button>
+        </div>
+        
+        <div id="captcha">
+            <div id="text">请先生成验证码</div>
+            <div id="wait">
+                <div class="loading">
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button id="btn-result" class="button secondary">获取验证结果</button>
+        </div>
+        
+        <div class="result-container">
+            <div class="result-label">验证码</div>
+            <div id="validate" class="result-value">验证成功后显示</div>
+        </div>
+    </div>
+    
+    <div id="snackbar" class="snackbar">验证码已复制</div>
+
+    <script src="https://static.geetest.com/static/js/gt.0.4.9.js"></script>
+    <script>
+        // 从URL参数获取gt和challenge
+        function getQueryParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+        
+        // 显示提示信息
+        function showSnackbar(message) {
+            const snackbar = document.getElementById('snackbar');
+            snackbar.textContent = message;
+            snackbar.classList.add('show');
+            setTimeout(() => {
+                snackbar.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 复制文本到剪贴板
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showSnackbar('验证码已复制');
+            }).catch(err => {
+                console.error('复制失败:', err);
+            });
+        }
+        
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            const gt = getQueryParam('gt');
+            const challenge = getQueryParam('challenge');
+            
+            if (gt && challenge) {
+                document.getElementById('gt').value = gt;
+                document.getElementById('challenge').value = challenge;
+            } else {
+                alert('缺少gt或challenge参数');
+            }
+        });
+        
+        var handler = function (captchaObj) {
+            captchaObj.appendTo('#captcha');
+            captchaObj.onReady(function () {
+                document.getElementById('wait').style.display = 'none';
+            });
+            
+            document.getElementById('btn-result').addEventListener('click', function () {
+                var result = captchaObj.getValidate();
+                if (!result) {
+                    return alert('请完成验证');
+                }
+                
+                const validate = result.geetest_validate;
+                const seccode = result.geetest_seccode;
+                const combined = `${validate};${seccode}`;
+                
+                document.getElementById('validate').textContent = combined;
+                copyToClipboard(combined);
+            });
+        };
+        
+        document.getElementById('btn-gen').addEventListener('click', function () {
+            const gt = document.getElementById('gt').value;
+            const challenge = document.getElementById('challenge').value;
+            
+            if (!gt || !challenge) {
+                return alert('请提供gt和challenge');
+            }
+            
+            document.getElementById('text').style.display = 'none';
+            document.getElementById('wait').style.display = 'block';
+            
+            initGeetest({
+                gt: gt,
+                challenge: challenge,
+                offline: false,
+                new_captcha: true,
+                product: "popup",
+                width: "100%",
+                https: true
+            }, handler);
+        });
+    </script>
+</body>
+
+</html>
