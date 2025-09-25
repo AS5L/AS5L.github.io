@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>平台检测工具</title>
+    <style>
+        :root {
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-secondary: #625B71;
+            --md-sys-color-on-secondary: #FFFFFF;
+            --md-sys-color-secondary-container: #E8DEF8;
+            --md-sys-color-on-secondary-container: #1D192B;
+            --md-sys-color-surface: #FFFBFE;
+            --md-sys-color-on-surface: #1C1B1F;
+            --md-sys-color-surface-variant: #E7E0EC;
+            --md-sys-color-on-surface-variant: #49454F;
+        }
+
+        body {
+            font-family: 'Roboto', 'Noto Sans SC', sans-serif;
+            background-color: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            margin: 0;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: var(--md-sys-color-primary);
+            text-align: center;
+        }
+
+        .card {
+            background-color: var(--md-sys-color-surface);
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .platform-item {
+            margin-bottom: 16px;
+        }
+
+        .platform-name {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .progress-container {
+            height: 8px;
+            background-color: var(--md-sys-color-surface-variant);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--md-sys-color-primary);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .confidence {
+            color: var(--md-sys-color-secondary);
+            font-weight: 500;
+        }
+
+        .details {
+            margin-top: 24px;
+            font-size: 14px;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        .details-title {
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .feature-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            margin-bottom: 4px;
+            display: flex;
+        }
+
+        .feature-name {
+            flex: 1;
+        }
+
+        .feature-value {
+            font-family: monospace;
+        }
+
+        .highlight {
+            color: var(--md-sys-color-primary);
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>平台检测</h1>
+        <p>基于特性检测的平台识别</p>
+        
+        <div id="platform-results">
+            <!-- 结果将在这里动态生成 -->
+        </div>
+        
+        <div class="details">
+            <div class="details-title">检测到的特性：</div>
+            <ul id="feature-list" class="feature-list">
+                <!-- 特性列表将在这里动态生成 -->
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 平台检测函数
+            async function detectPlatform() {
+                const platforms = {
+                    'Windows': 0,
+                    'MacOS': 0,
+                    'Linux': 0,
+                    'iOS': 0,
+                    'Android': 0,
+                    'ChromeOS': 0
+                };
+                
+                const features = [];
+                
+                // 1. 检测触摸支持
+                const maxTouchPoints = navigator.maxTouchPoints || 0;
+                const touchSupport = 'ontouchstart' in window || maxTouchPoints > 0;
+                features.push({name: '触摸支持', value: touchSupport ? `支持 (${maxTouchPoints}点)` : '不支持'});
+                
+                if (touchSupport) {
+                    platforms['iOS'] += 15;
+                    platforms['Android'] += 15;
+                    // 桌面平台扣分
+                    platforms['Windows'] -= 5;
+                    platforms['MacOS'] -= 5;
+                    platforms['Linux'] -= 5;
+                } else {
+                    platforms['Windows'] += 10;
+                    platforms['MacOS'] += 10;
+                    platforms['Linux'] += 10;
+                    // 移动平台扣分
+                    platforms['iOS'] -= 10;
+                    platforms['Android'] -= 10;
+                }
+                
+                // 2. 检测 Apple 设备特性
+                const isApple = /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform) || 
+                               (navigator.vendor && navigator.vendor.includes('Apple')) ||
+                               (window.chrome && window.chrome.loadTimes && 
+                                window.chrome.loadTimes().wasFetchedViaSpdy);
+                
+                features.push({name: 'Apple设备特性', value: isApple});
+                
+                if (isApple) {
+                    platforms['MacOS'] += 25;
+                    platforms['iOS'] += 25;
+                    // 非Apple平台扣分
+                    platforms['Windows'] -= 10;
+                    platforms['Linux'] -= 10;
+                    platforms['Android'] -= 10;
+                    platforms['ChromeOS'] -= 10;
+                } else {
+                    // Apple平台扣分
+                    platforms['MacOS'] -= 15;
+                    platforms['iOS'] -= 15;
+                }
+                
+                // 3. 检测 Android 特性
+                const isAndroid = window.hasOwnProperty('onorientationchange') || 
+                                 (window.orientation !== undefined) ||
+                                 (navigator.userAgent.includes('Android') && !navigator.userAgent.includes('Chrome'));
+                
+                features.push({name: 'Android特性', value: isAndroid});
+                
+                if (isAndroid) {
+                    platforms['Android'] += 30;
+                    // 非Android平台扣分
+                    platforms['Windows'] -= 10;
+                    platforms['MacOS'] -= 10;
+                    platforms['Linux'] -= 10;
+                    platforms['iOS'] -= 15;
+                    platforms['ChromeOS'] -= 10;
+                } else {
+                    // Android平台扣分
+                    platforms['Android'] -= 15;
+                }
+                
+                // 4. 检测 Windows 特性
+                const isWindows = navigator.platform.includes('Win') || 
+                                 (window.chrome && window.chrome.runtime && 
+                                  window.chrome.runtime.getPlatformInfo && 
+                                  (async () => {
+                                      try {
+                                          const platformInfo = await window.chrome.runtime.getPlatformInfo();
+                                          return platformInfo.os === 'win';
+                                      } catch {
+                                          return false;
+                                      }
+                                  })());
+                
+                features.push({name: 'Windows特性', value: isWindows});
+                
+                if (isWindows) {
+                    platforms['Windows'] += 30;
+                    // 非Windows平台扣分
+                    platforms['MacOS'] -= 10;
+                    platforms['Linux'] -= 10;
+                    platforms['iOS'] -= 15;
+                    platforms['Android'] -= 10;
+                    platforms['ChromeOS'] -= 10;
+                } else {
+                    // Windows平台扣分
+                    platforms['Windows'] -= 15;
+                }
+                
+                // 5. 检测 MacOS 特性
+                const isMac = navigator.platform.includes('Mac') || 
+                             (window.chrome && window.chrome.runtime && 
+                              window.chrome.runtime.getPlatformInfo && 
+                              (async () => {
+                                  try {
+                                      const platformInfo = await window.chrome.runtime.getPlatformInfo();
+                                      return platformInfo.os === 'mac';
+                                  } catch {
+                                      return false;
+                                  }
+                              })());
+                
+                features.push({name: 'MacOS特性', value: isMac});
+                
+                if (isMac) {
+                    platforms['MacOS'] += 30;
+                    platforms['iOS'] -= 15; // 减少 iOS 的可能性
+                    // 非Mac平台扣分
+                    platforms['Windows'] -= 10;
+                    platforms['Linux'] -= 10;
+                    platforms['Android'] -= 10;
+                    platforms['ChromeOS'] -= 10;
+                } else {
+                    // Mac平台扣分
+                    platforms['MacOS'] -= 15;
+                }
+                
+                // 6. 检测 Linux 特性
+                const isLinux = navigator.platform.includes('Linux') && 
+                               !navigator.userAgent.includes('Android') &&
+                               !navigator.userAgent.includes('CrOS');
+                
+                features.push({name: 'Linux特性', value: isLinux});
+                
+                if (isLinux) {
+                    platforms['Linux'] += 30;
+                    // 非Linux平台扣分
+                    platforms['Windows'] -= 10;
+                    platforms['MacOS'] -= 10;
+                    platforms['iOS'] -= 15;
+                    platforms['Android'] -= 10;
+                    platforms['ChromeOS'] -= 10;
+                } else {
+                    // Linux平台扣分
+                    platforms['Linux'] -= 15;
+                }
+                
+                // 7. 检测 ChromeOS 特性
+                const isChromeOS = navigator.userAgent.includes('CrOS') || 
+                                  (window.chrome && window.chrome.runtime && 
+                                   window.chrome.runtime.getPlatformInfo && 
+                                   (async () => {
+                                       try {
+                                           const platformInfo = await window.chrome.runtime.getPlatformInfo();
+                                           return platformInfo.os === 'cros';
+                                       } catch {
+                                           return false;
+                                       }
+                                   })());
+                
+                features.push({name: 'ChromeOS特性', value: isChromeOS});
+                
+                if (isChromeOS) {
+                    platforms['ChromeOS'] += 40;
+                    // 非ChromeOS平台扣分
+                    platforms['Windows'] -= 15;
+                    platforms['MacOS'] -= 15;
+                    platforms['Linux'] -= 15;
+                    platforms['iOS'] -= 20;
+                    platforms['Android'] -= 15;
+                } else {
+                    // ChromeOS平台扣分
+                    platforms['ChromeOS'] -= 20;
+                }
+                
+                // 8. 检测移动设备
+                const isMobile = touchSupport && (window.innerWidth < 768 || window.innerHeight < 768);
+                features.push({name: '移动设备特性', value: isMobile});
+                
+                if (isMobile) {
+                    platforms['iOS'] += 15;
+                    platforms['Android'] += 15;
+                    platforms['Windows'] -= 10;
+                    platforms['MacOS'] -= 10;
+                    platforms['Linux'] -= 10;
+                } else {
+                    // 非移动设备扣分
+                    platforms['iOS'] -= 10;
+                    platforms['Android'] -= 10;
+                }
+                
+                // 9. 检测平板设备
+                const isTablet = touchSupport && 
+                                ((window.innerWidth >= 768 && window.innerHeight >= 768) || 
+                                 (window.innerWidth >= 1024 && window.innerHeight >= 1024));
+                features.push({name: '平板设备特性', value: isTablet});
+                
+                if (isTablet) {
+                    platforms['iOS'] += 10;
+                    platforms['Android'] += 10;
+                    platforms['ChromeOS'] += 5;
+                }
+                
+                // 10. 检测 Safari Push (macOS 专属)
+                const hasSafariPush = 'safari' in window && 'pushNotification' in window.safari;
+                features.push({name: 'Safari Push API', value: hasSafariPush});
+                
+                if (hasSafariPush) {
+                    platforms['MacOS'] += 20;
+                    // 非Mac平台扣分
+                    platforms['Windows'] -= 10;
+                    platforms['Linux'] -= 10;
+                    platforms['iOS'] -= 5; // iOS也有Safari，但不支持Push API
+                    platforms['Android'] -= 10;
+                    platforms['ChromeOS'] -= 10;
+                } else {
+                    // Mac平台扣分
+                    platforms['MacOS'] -= 5;
+                }
+                
+                // 11. 检测 Web NFC 支持 (Android/ChromeOS)
+                const hasWebNFC = 'NDEFReader' in window;
+                features.push({name: 'Web NFC 支持', value: hasWebNFC});
+                
+                if (hasWebNFC) {
+                    platforms['Android'] += 15;
+                    platforms['ChromeOS'] += 10;
+                    // 非Android/ChromeOS平台扣分
+                    platforms['Windows'] -= 10;
+                    platforms['MacOS'] -= 10;
+                    platforms['Linux'] -= 10;
+                    platforms['iOS'] -= 15;
+                } else {
+                    // Android/ChromeOS平台扣分
+                    platforms['Android'] -= 5;
+                    platforms['ChromeOS'] -= 5;
+                }
+                
+                // 12. 检测 iOS 权限 API 形态
+                const hasIOSPermissions = 'Permissions' in window && 
+                                         'query' in window.Permissions.prototype &&
+                                         'request' in window.Permissions.prototype;
+                features.push({name: 'iOS 权限 API', value: hasIOSPermissions});
+                
+                if (hasIOSPermissions) {
+                    platforms['iOS'] += 15;
+                    // 非iOS平台扣分
+                    platforms['Windows'] -= 10;
+                    platforms['MacOS'] -= 5;
+                    platforms['Linux'] -= 10;
+                    platforms['Android'] -= 10;
+                    platforms['ChromeOS'] -= 10;
+                } else {
+                    // iOS平台扣分
+                    platforms['iOS'] -= 5;
+                }
+                
+                // 13. 检测移动 GPU (通过 WebGL 渲染器信息)
+                let gpuInfo = '无法检测';
+                try {
+                    const canvas = document.createElement('canvas');
+                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                    if (gl) {
+                        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                        if (debugInfo) {
+                            gpuInfo = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                        }
+                    }
+                } catch (e) {
+                    gpuInfo = '检测失败';
+                }
+                
+                features.push({name: 'GPU 信息', value: gpuInfo});
+                
+                // 检测常见移动 GPU
+                const isMobileGPU = /Adreno|Mali|PowerVR|Apple GPU|Apple\s*A\d+|Apple\s*GPU/.test(gpuInfo);
+                features.push({name: '移动 GPU', value: isMobileGPU});
+                
+                if (isMobileGPU && touchSupport) {
+                    if (/Adreno/.test(gpuInfo)) {
+                        platforms['Android'] += 15;
+                        // 非Android平台扣分
+                        platforms['iOS'] -= 5;
+                    } else if (/Mali/.test(gpuInfo)) {
+                        platforms['Android'] += 10;
+                    } else if (/PowerVR|Apple GPU|Apple\s*A\d+/.test(gpuInfo)) {
+                        platforms['iOS'] += 15;
+                        // 非iOS平台扣分
+                        platforms['Android'] -= 5;
+                    }
+                }
+                
+                // 14. 检测 iOS/iPadOS WebKit 移动端 CSS 特性
+                const supportsWebkitTouchCallout = CSS.supports('-webkit-touch-callout', 'none');
+                const supportsWebkitOverflowScrolling = CSS.supports('-webkit-overflow-scrolling', 'touch');
+                features.push({name: '-webkit-touch-callout 支持', value: supportsWebkitTouchCallout});
+                features.push({name: '-webkit-overflow-scrolling 支持', value: supportsWebkitOverflowScrolling});
+                
+                if (supportsWebkitTouchCallout || supportsWebkitOverflowScrolling) {
+                    platforms['iOS'] += 10;
+                    // 非iOS平台扣分
+                    platforms['Android'] -= 5;
+                } else {
+                    // iOS平台扣分
+                    platforms['iOS'] -= 5;
+                }
+                
+                // 15. 检测触控/粗指针环境
+                const hasCoarsePointer = matchMedia('(pointer: coarse)').matches;
+                features.push({name: '粗指针环境', value: hasCoarsePointer});
+                
+                if (hasCoarsePointer) {
+                    platforms['iOS'] += 5;
+                    platforms['Android'] += 5;
+                    // 桌面平台扣分
+                    platforms['Windows'] -= 3;
+                    platforms['MacOS'] -= 3;
+                    platforms['Linux'] -= 3;
+                } else {
+                    // 移动平台扣分
+                    platforms['iOS'] -= 3;
+                    platforms['Android'] -= 3;
+                }
+                
+                // 16. 检测 Apple Pay API
+                const hasApplePay = 'ApplePaySession' in window && 
+                                   typeof ApplePaySession !== 'undefined' && 
+                                   ApplePaySession.supportsVersion(3);
+                features.push({name: 'Apple Pay API', value: hasApplePay});
+                
+                if (hasApplePay) {
+                    platforms['iOS'] += 10;
+                    platforms['MacOS'] += 5;
+                    // 非Apple平台扣分
+                    platforms['Windows'] -= 5;
+                    platforms['Linux'] -= 5;
+                    platforms['Android'] -= 5;
+                    platforms['ChromeOS'] -= 5;
+                } else {
+                    // Apple平台扣分
+                    platforms['iOS'] -= 3;
+                    platforms['MacOS'] -= 3;
+                }
+                
+                // 确保所有值在 0-100 范围内
+                for (const platform in platforms) {
+                    platforms[platform] = Math.max(0, Math.min(100, platforms[platform]));
+                }
+                
+                return { platforms, features };
+            }
+            
+            // 显示结果
+            function displayResults(results) {
+                const platforms = results.platforms;
+                const features = results.features;
+                
+                // 排序平台按置信度降序
+                const sortedPlatforms = Object.entries(platforms)
+                    .sort((a, b) => b[1] - a[1]);
+                
+                const resultsContainer = document.getElementById('platform-results');
+                resultsContainer.innerHTML = '';
+                
+                sortedPlatforms.forEach(([platform, confidence]) => {
+                    const platformItem = document.createElement('div');
+                    platformItem.className = 'platform-item';
+                    
+                    const platformName = document.createElement('div');
+                    platformName.className = 'platform-name';
+                    platformName.innerHTML = `
+                        <span>${platform}</span>
+                        <span class="confidence">${confidence}%</span>
+                    `;
+                    
+                    const progressContainer = document.createElement('div');
+                    progressContainer.className = 'progress-container';
+                    
+                    const progressBar = document.createElement('div');
+                    progressBar.className = 'progress-bar';
+                    progressBar.style.width = `${confidence}%`;
+                    
+                    progressContainer.appendChild(progressBar);
+                    platformItem.appendChild(platformName);
+                    platformItem.appendChild(progressContainer);
+                    resultsContainer.appendChild(platformItem);
+                });
+                
+                // 显示检测到的特性
+                const featureList = document.getElementById('feature-list');
+                featureList.innerHTML = '';
+                
+                features.forEach(feature => {
+                    const li = document.createElement('li');
+                    const value = typeof feature.value === 'boolean' ? 
+                        feature.value ? '<span class="highlight">是</span>' : '否' : 
+                        feature.value;
+                    li.innerHTML = `
+                        <span class="feature-name">${feature.name}:</span>
+                        <span class="feature-value">${value}</span>
+                    `;
+                    featureList.appendChild(li);
+                });
+            }
+            
+            // 执行检测并显示结果
+            detectPlatform().then(displayResults);
+        });
+    </script>
+</body>
+</html>
