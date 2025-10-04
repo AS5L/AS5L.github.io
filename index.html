@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft 网易版存档解密工具</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-secondary: #625B71;
+            --md-sys-color-on-secondary: #FFFFFF;
+            --md-sys-color-secondary-container: #E8DEF8;
+            --md-sys-color-on-secondary-container: #1D192B;
+            --md-sys-color-tertiary: #7D5260;
+            --md-sys-color-on-tertiary: #FFFFFF;
+            --md-sys-color-tertiary-container: #FFD8E4;
+            --md-sys-color-on-tertiary-container: #31111D;
+            --md-sys-color-error: #B3261E;
+            --md-sys-color-on-error: #FFFFFF;
+            --md-sys-color-error-container: #F9DEDC;
+            --md-sys-color-on-error-container: #410E0B;
+            --md-sys-color-outline: #79747E;
+            --md-sys-color-background: #FFFBFE;
+            --md-sys-color-on-background: #1C1B1F;
+            --md-sys-color-surface: #FFFBFE;
+            --md-sys-color-on-surface: #1C1B1F;
+            --md-sys-color-surface-variant: #E7E0EC;
+            --md-sys-color-on-surface-variant: #49454F;
+            --md-sys-color-inverse-surface: #313033;
+            --md-sys-color-inverse-on-surface: #F4EFF4;
+            --md-sys-color-shadow: #000000;
+        }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-background);
+            margin: 0;
+            padding: 0;
+            line-height: 1.5;
+        }
+        h1 {
+            text-align: center;
+            color: var(--md-sys-color-primary);
+            margin-bottom: 24px;
+            font-size: 2rem;
+            font-weight: 400;
+        }
+        
+        .upload-area {
+            border: 2px dashed var(--md-sys-color-outline);
+            border-radius: 16px;
+            padding: 40px 24px;
+            text-align: center;
+            margin-bottom: 24px;
+            transition: all 0.2s ease;
+            background-color: var(--md-sys-color-surface-variant);
+        }
+        
+        .upload-area:hover {
+            border-color: var(--md-sys-color-primary);
+        }
+        
+        .upload-area.dragover {
+            background-color: var(--md-sys-color-primary-container);
+            border-color: var(--md-sys-color-primary);
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .browse-btn {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 100px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            margin-top: 16px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+        
+        .browse-btn:hover {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.16);
+        }
+        
+        .browse-btn:active {
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        }
+        
+        .process-btn {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            padding: 16px 24px;
+            border-radius: 100px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            width: 100%;
+            margin-top: 24px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+        
+        .process-btn:hover {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.16);
+        }
+        
+        .process-btn:disabled {
+            background-color: rgba(0, 0, 0, 0.12);
+            color: rgba(0, 0, 0, 0.38);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        
+        .status {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 12px;
+            background-color: var(--md-sys-color-surface-variant);
+            text-align: center;
+            min-height: 20px;
+            font-size: 0.875rem;
+        }
+        
+        .progress {
+            height: 8px;
+            background-color: var(--md-sys-color-surface-variant);
+            border-radius: 4px;
+            margin-top: 24px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background-color: var(--md-sys-color-primary);
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .success {
+            color: var(--md-sys-color-primary);
+            font-weight: 500;
+        }
+        
+        .error {
+            color: var(--md-sys-color-error);
+            font-weight: 500;
+        }
+        
+        .file-info {
+            margin-top: 16px;
+            padding: 16px;
+            background-color: var(--md-sys-color-surface-variant);
+            border-radius: 12px;
+            font-size: 0.875rem;
+        }
+        .download-btn {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            padding: 16px 24px;
+            border-radius: 100px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            width: 87.5%;
+            margin-top: 24px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+            text-decoration: none;
+            display: none;
+            text-align: center;
+        }
+        
+        .download-btn:hover {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.16);
+        }
+        
+        .card {
+            background-color: var(--md-sys-color-surface);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                margin: 16px;
+                padding: 16px;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .upload-area {
+                padding: 32px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+        <div class="card">
+            <div class="upload-area" id="uploadArea">
+                <p>拖拽ZIP文件到此处或</p>
+                <input type="file" id="fileInput" class="file-input" accept=".zip">
+                <button class="browse-btn" id="browseBtn">选择文件</button>
+            </div>
+            
+            <div class="file-info" id="fileInfo">
+                未选择文件
+            </div>
+            
+            <div class="progress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            
+            <div class="status" id="status">
+                等待操作...
+            </div>
+            
+            <button class="process-btn" id="processBtn" disabled>开始解密</button>
+            <a class="download-btn" id="downloadBtn">下载解密后的存档</a>
+        </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const browseBtn = document.getElementById('browseBtn');
+            const fileInfo = document.getElementById('fileInfo');
+            const processBtn = document.getElementById('processBtn');
+            const status = document.getElementById('status');
+            const progressBar = document.getElementById('progressBar');
+            const downloadBtn = document.getElementById('downloadBtn');
+            
+            let currentFile = null;
+            
+            // 事件监听
+            browseBtn.addEventListener('click', () => fileInput.click());
+            
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            });
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                if (e.dataTransfer.files.length > 0) {
+                    handleFileSelect(e.dataTransfer.files[0]);
+                }
+            });
+            
+            processBtn.addEventListener('click', startProcessing);
+            
+            function handleFileSelect(file) {
+                if (file.type !== 'application/zip') {
+                    status.innerHTML = '<span class="error">错误：请上传ZIP文件</span>';
+                    return;
+                }
+                
+                currentFile = file;
+                fileInfo.textContent = `已选择: ${file.name} (${formatFileSize(file.size)})`;
+                processBtn.disabled = false;
+                status.textContent = '等待开始解密...';
+            }
+            
+            function formatFileSize(bytes) {
+                if (bytes < 1024) return bytes + ' B';
+                else if (bytes < 1048576) return (bytes / 1024).toFixed(2) + ' KB';
+                else return (bytes / 1048576).toFixed(2) + ' MB';
+            }
+            
+            async function startProcessing() {
+                if (!currentFile) return;
+                
+                processBtn.disabled = true;
+                status.textContent = '正在读取ZIP文件...';
+                progressBar.style.width = '10%';
+                
+                try {
+                    // 读取ZIP文件
+                    const zip = await JSZip.loadAsync(currentFile);
+                    status.textContent = '分析存档结构...';
+                    progressBar.style.width = '20%';
+                    
+                    // 查找必要的文件
+                    let currentFileEntry = null;
+                    let manifestFileEntry = null;
+                    
+                    zip.forEach((relativePath, zipEntry) => {
+                        if (zipEntry.dir) return;
+                        
+                        if (relativePath === 'CURRENT') {
+                            currentFileEntry = zipEntry;
+                        } else if (relativePath.startsWith('MANIFEST')) {
+                            manifestFileEntry = zipEntry;
+                        }
+                    });
+                    
+                    if (!currentFileEntry || !manifestFileEntry) {
+                        throw new Error('找不到CURRENT或MANIFEST文件，可能不是有效的网易版存档');
+                    }
+                    
+                    status.textContent = '正在获取密钥...';
+                    progressBar.style.width = '40%';
+                    
+                    // 读取CURRENT文件内容
+                    const currentFileData = await currentFileEntry.async('uint8array');
+                    
+                    // 检查文件头
+                    const encryptionHeader = new Uint8Array([0x80, 0x1D, 0x30, 0x01]);
+                    const isEncrypted = checkHeader(currentFileData, encryptionHeader);
+                    
+                    if (!isEncrypted) {
+                        throw new Error('存档未加密或使用旧版加密，无法解密');
+                    }
+                    
+                    // 获取密钥
+                    const manifestName = manifestFileEntry.name;
+                    const key = await getKey(currentFileData, manifestName);
+                    
+                    status.textContent = '正在解密文件...';
+                    progressBar.style.width = '60%';
+                    
+                    // 创建新ZIP存放解密后的文件
+                    const newZip = new JSZip();
+                    let processedFiles = 0;
+                    const totalFiles = Object.keys(zip.files).length;
+                    
+                    // 处理每个文件
+                    for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
+                        if (zipEntry.dir) {
+                            newZip.folder(relativePath);
+                            continue;
+                        }
+                        
+                        const fileData = await zipEntry.async('uint8array');
+                        
+                        // 检查是否是加密文件
+                        if (checkHeader(fileData, encryptionHeader)) {
+                            // 解密文件
+                            const decryptedData = decryptFile(fileData, key);
+                            newZip.file(relativePath, decryptedData);
+                        } else {
+                            // 直接添加未加密文件
+                            newZip.file(relativePath, fileData);
+                        }
+                        
+                        processedFiles++;
+                        progressBar.style.width = `${60 + (processedFiles / totalFiles) * 30}%`;
+                    }
+                    
+                    status.textContent = '正在生成解密后的ZIP...';
+                    progressBar.style.width = '90%';
+                    
+                    // 生成ZIP文件
+                    const content = await newZip.generateAsync({
+                        type: 'blob',
+                        compression: 'DEFLATE',
+                        compressionOptions: { level: 6 }
+                    });
+                    
+                    progressBar.style.width = '100%';
+                    status.innerHTML = '<span class="success">解密完成！</span>';
+                    
+                    // 创建下载链接
+                    const url = URL.createObjectURL(content);
+                    downloadBtn.href = url;
+                    downloadBtn.download = currentFile.name.replace('.zip', '_decrypted.zip');
+                    downloadBtn.style.display = 'block';
+                    
+                } catch (error) {
+                    status.innerHTML = `<span class="error">错误: ${error.message}</span>`;
+                    processBtn.disabled = false;
+                }
+            }
+            
+            function checkHeader(fileData, header) {
+                if (fileData.length < header.length) return false;
+                
+                for (let i = 0; i < header.length; i++) {
+                    if (fileData[i] !== header[i]) return false;
+                }
+                
+                return true;
+            }
+            
+            async function getKey(currentFileData, manifestName) {
+                // 移除文件头
+                const encryptedData = currentFileData.slice(4);
+                
+                // 将manifest名称转换为字节数组并添加0x0A
+                const encoder = new TextEncoder();
+                const manifestBytes = encoder.encode(manifestName);
+                const source = new Uint8Array(manifestBytes.length + 1);
+                source.set(manifestBytes);
+                source[manifestBytes.length] = 0x0A;
+                
+                // 异或操作获取密钥
+                const key = xor(encryptedData, source);
+                
+                // 优化密钥
+                return optimizeKey(key);
+            }
+            
+            function xor(data, key) {
+                const result = new Uint8Array(data.length);
+                for (let i = 0; i < data.length; i++) {
+                    result[i] = data[i] ^ key[i % key.length];
+                }
+                return result;
+            }
+            
+            function optimizeKey(key) {
+                if (key.length === 16) {
+                    const firstHalf = key.slice(0, 8);
+                    const secondHalf = key.slice(8, 16);
+                    
+                    let isSame = true;
+                    for (let i = 0; i < 8; i++) {
+                        if (firstHalf[i] !== secondHalf[i]) {
+                            isSame = false;
+                            break;
+                        }
+                    }
+                    
+                    if (isSame) {
+                        return firstHalf;
+                    }
+                }
+                
+                return key;
+            }
+            
+            function decryptFile(fileData, key) {
+                // 移除加密头
+                const encryptedData = fileData.slice(4);
+                
+                // 使用密钥进行异或解密
+                return xor(encryptedData, key);
+            }
+        });
+    </script>
+</body>
+</html>
