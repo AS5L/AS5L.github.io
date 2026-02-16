@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极验验证</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f5f5f5;
+            font-family: sans-serif;
+        }
+
+        #captcha-container {
+            text-align: center;
+        }
+
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="captcha-container">
+        <div id="captcha">
+            <div id="wait">
+                <div class="loading">
+                    正在加载验证码...
+                </div>
+            </div>
+        </div>
+        <div id="status"></div>
+    </div>
+
+    <script src="https://static.geetest.com/static/js/gt.0.5.0.js"></script>
+    <script>
+        (function () {
+            'use strict';
+            function getQueryParam(name) {
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get(name);
+            }
+            const gt = getQueryParam('gt');
+            const challenge = getQueryParam('challenge');
+            if (!gt || !challenge) {
+                document.getElementById('wait').innerHTML =
+                    '<div class="error">URL中缺少必要参数：请确保URL包含 ?gt=YOUR_GT&challenge=YOUR_CHALLENGE</div>';
+                return;
+            }
+            var handler = function (captchaObj) {
+                captchaObj.appendTo('#captcha');
+                captchaObj.onReady(function () {
+                    document.getElementById('wait').style.display = 'none';
+                    captchaObj.verify();
+                });
+                captchaObj.onSuccess(function () {
+                    var result = captchaObj.getValidate();
+                    if (!result) {
+                        showStatus('验证失败：无法获取结果', 'error');
+                        return;
+                    }
+                    var resultString = result.geetest_validate + ';' + result.geetest_seccode;
+                    copyToClipboard(resultString);
+                    showStatus('验证成功！结果已复制', 'success');
+                    console.log('极验验证结果：', resultString);
+                });
+                captchaObj.onError(function (error) {
+                    showStatus('验证出错：' + JSON.stringify(error), 'error');
+                });
+            };
+            function showStatus(message, type) {
+                var statusEl = document.getElementById('status');
+                statusEl.textContent = message;
+                statusEl.className = type;
+                statusEl.style.display = 'block';
+            }
+            function copyToClipboard(text) {
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(text).then(function () {
+                        console.log('复制成功 (Clipboard API)');
+                    }).catch(function (err) {
+                        fallbackCopyTextToClipboard(text);
+                    });
+                } else {
+                    fallbackCopyTextToClipboard(text);
+                }
+            }
+
+            function fallbackCopyTextToClipboard(text) {
+                var textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    var successful = document.execCommand('copy');
+                    console.log('复制' + (successful ? '成功' : '失败') + ' (降级方案)');
+                } catch (err) {
+                    console.error('复制失败：', err);
+                    showStatus('验证成功，但复制失败，请手动记录结果。', 'error');
+                }
+                document.body.removeChild(textArea);
+            }
+
+            initGeetest({
+                gt: gt,
+                challenge: challenge,
+                offline: false,
+                new_captcha: true,
+                product: 'popup',
+                width: '300px',
+                https: true
+            }, handler);
+
+        })();
+    </script>
+</body>
+
+</html>
