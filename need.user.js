@@ -4,7 +4,7 @@
 // @version      1.2
 // @description  做到一些不可思议的事
 // @author       LWF
-// @match        *://*/*
+// @match        *://as5l.github.io/*
 // @connect      *
 // @grant        GM_xmlhttpRequest
 // @run-at       document-start
