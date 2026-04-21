@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         网页能力扩展
 // @namespace    https://91官方.com/
-// @version      1.1
-// @description  让网页做到一些不可思议的功能
+// @version      1.2
+// @description  做到一些不可思议的事
 // @author       LWF
-// @match        *://as5l.github.io/*
+// @match        *://*/*
 // @connect      *
 // @grant        GM_xmlhttpRequest
 // @run-at       document-start
@@ -12,102 +12,49 @@
 
 (function() {
     'use strict';
-    
     const pendingRequests = new Map();
-    const REQUEST_PREFIX = 'GM_PROXY_';
-    
-    window.addEventListener('message', function(event) {
-        if (event.source !== window) return;
+
+    document.addEventListener('BILI_GM_REQUEST', function(event) {
+        const data = event.detail;
+        if (!data || data.type !== 'GM_PROXY_REQUEST') return;
         
-        const data = event.data;
-        if (!data || !data.type || !data.type.startsWith(REQUEST_PREFIX)) return;
-        
-        switch(data.type) {
-            case 'GM_PROXY_REQUEST':
-                handleRequest(data, event);
-                break;
-            case 'GM_PROXY_ABORT':
-                handleAbort(data);
-                break;
-        }
-    });
-    
-    function handleRequest(data, event) {
-        const requestId = data.requestId;
-        
-        const gmDetails = {
+        const reqObj = GM_xmlhttpRequest({
             method: data.method || 'GET',
             url: data.url,
             headers: data.headers || {},
             data: data.data,
-            binary: data.binary,
-            timeout: data.timeout,
             responseType: data.responseType,
-            overrideMimeType: data.overrideMimeType,
-            anonymous: data.anonymous,
-            user: data.user,
-            password: data.password
-        };
-        ['onload', 'onerror', 'ontimeout', 'onprogress', 'onreadystatechange'].forEach(evt => {
-            if (data[evt]) {
-                gmDetails[evt] = function(response) {
-                    sendResponse(requestId, evt, response, data.responseType);
-                };
-            }
+            onload: res => sendResponse(data.requestId, 'onload', res),
+            onerror: res => sendResponse(data.requestId, 'onerror', res)
         });
-        const requestObj = GM_xmlhttpRequest(gmDetails);
-        pendingRequests.set(requestId, requestObj);
-        
-        window.postMessage({
-            type: 'GM_PROXY_READY',
-            requestId: requestId
-        }, '*');
-        
-        function sendResponse(reqId, eventType, response, reqResponseType) {
-            const responseData = {
-                type: 'GM_PROXY_RESPONSE',
-                requestId: reqId,
-                eventType: eventType,
-                response: {
-                    status: response.status,
-                    statusText: response.statusText,
-                    finalUrl: response.finalUrl,
-                    readyState: response.readyState,
-                    responseHeaders: response.responseHeaders,
-                    responseType: response.responseType
-                }
-            };
-            if (reqResponseType !== 'arraybuffer' && reqResponseType !== 'blob') {
-                responseData.response.responseText = response.responseText;
-            }
-            
-            if (response.responseType === 'json' && response.responseText) {
-                try {
-                    responseData.response.response = JSON.parse(response.responseText);
-                } catch(e) {
-                    responseData.response.response = response.responseText;
-                }
-            } else {
-                responseData.response.response = response.response;
-            }
-            
-            window.postMessage(responseData, '*');
-            if (['onload', 'onerror', 'ontimeout', 'onabort'].includes(eventType)) {
-                pendingRequests.delete(reqId);
-            }
-        }
-    }
-    
-    function handleAbort(data) {
-        const requestObj = pendingRequests.get(data.requestId);
-        if (requestObj && typeof requestObj.abort === 'function') {
-            requestObj.abort();
+        pendingRequests.set(data.requestId, reqObj);
+    });
+
+    document.addEventListener('BILI_GM_ABORT', function(event) {
+        const data = event.detail;
+        if (!data || !data.requestId) return;
+        const reqObj = pendingRequests.get(data.requestId);
+        if (reqObj && typeof reqObj.abort === 'function') {
+            reqObj.abort();
             pendingRequests.delete(data.requestId);
-            
-            window.postMessage({
-                type: 'GM_PROXY_ABORTED',
-                requestId: data.requestId
-            }, '*');
         }
+    });
+
+    function sendResponse(reqId, eventType, response) {
+        const resData = { status: response.status };
+        if (response.responseType === 'arraybuffer' && response.response) {
+            const blob = new Blob([response.response]);
+            resData.blobUrl = URL.createObjectURL(blob);
+        } else if (response.responseType === 'json' && response.responseText) {
+            try { resData.response = JSON.parse(response.responseText); } 
+            catch(e) { resData.response = response.responseText; }
+        } else {
+            resData.response = response.response;
+        }
+
+        document.dispatchEvent(new CustomEvent('BILI_GM_RESPONSE', {
+            detail: { type: 'GM_PROXY_RESPONSE', requestId: reqId, eventType: eventType, response: resData }
+        }));
+        pendingRequests.delete(reqId);
     }
 })();
